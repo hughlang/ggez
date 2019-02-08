@@ -364,7 +364,7 @@ impl NumSamples {
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, SmartDefault)]
 pub struct ModuleConf {
     /// The gamepad input module.
-    #[default = true]
+    #[default = false]
     pub gamepad: bool,
     /// The audio module.
     #[default = true]
