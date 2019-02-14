@@ -65,8 +65,8 @@ impl Rect {
     }
 
     /// Gets the `Rect`'s x and y coordinates as a `Point2`.
-    pub fn point(&self) -> Point2 {
-        Point2::new(self.x, self.y)
+    pub fn point(&self) -> mint::Point2<f32> {
+        mint::Point2{ x: self.x, y: self.y}
     }
 
     /// Returns the left edge of the `Rect`
@@ -90,7 +90,8 @@ impl Rect {
     }
 
     /// Checks whether the `Rect` contains a `Point`
-    pub fn contains(&self, point: Point2) -> bool {
+    pub fn contains<P>(&self, point: P) -> bool where P: Into<mint::Point2<f32>> {
+        let point = point.into();
         point.x >= self.left()
             && point.x <= self.right()
             && point.y <= self.bottom()
@@ -106,13 +107,15 @@ impl Rect {
     }
 
     /// Translates the `Rect` by an offset of (x, y)
-    pub fn translate(&mut self, offset: Vector2) {
+    pub fn translate<V>(&mut self, offset: V) where V: Into<mint::Vector2<f32>> {
+        let offset = offset.into();
         self.x += offset.x;
         self.y += offset.y;
     }
 
     /// Moves the `Rect`'s origin to (x, y)
-    pub fn move_to(&mut self, destination: Point2) {
+    pub fn move_to<P>(&mut self, destination: P) where P: Into<mint::Point2<f32>> {
+        let destination = destination.into();
         self.x = destination.x;
         self.y = destination.y;
     }
@@ -122,6 +125,80 @@ impl Rect {
     pub fn scale(&mut self, sx: f32, sy: f32) {
         self.w *= sx;
         self.h *= sy;
+    }
+
+    /// Calculated the new Rect around the rotated one.
+    pub fn rotate(&mut self, rotation: f32) {
+        let rotation = na::Rotation2::new(rotation);
+        let x0 = self.x;
+        let y0 = self.y;
+        let x1 = self.right();
+        let y1 = self.bottom();
+        let points = [
+            rotation * na::Point2::new(x0, y0),
+            rotation * na::Point2::new(x0, y1),
+            rotation * na::Point2::new(x1, y0),
+            rotation * na::Point2::new(x1, y1),
+        ];
+        let p0 = points[0];
+        let mut x_max = p0.x;
+        let mut x_min = p0.x;
+        let mut y_max = p0.y;
+        let mut y_min = p0.y;
+        for p in &points {
+            x_max = f32::max(x_max, p.x);
+            x_min = f32::min(x_min, p.x);
+            y_max = f32::max(y_max, p.y);
+            y_min = f32::min(y_min, p.y);
+        }
+        *self = Rect {
+            w: x_max - x_min,
+            h: y_max - y_min,
+            x: x_min,
+            y: y_min,
+        }
+    }
+
+    /// Returns a new `Rect` that includes all points of these two `Rect`s.
+    pub fn combine_with(self, other: Rect) -> Rect {
+        let x = f32::min(self.x, other.x);
+        let y = f32::min(self.y, other.y);
+        let w = f32::max(self.right(), other.right()) - x;
+        let h = f32::max(self.bottom(), other.bottom()) - y;
+        Rect { x, y, w, h }
+    }
+}
+
+impl approx::AbsDiffEq for Rect {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        f32::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        f32::abs_diff_eq(&self.x, &other.x, epsilon)
+            && f32::abs_diff_eq(&self.y, &other.y, epsilon)
+            && f32::abs_diff_eq(&self.w, &other.w, epsilon)
+            && f32::abs_diff_eq(&self.h, &other.h, epsilon)
+    }
+}
+
+impl approx::RelativeEq for Rect {
+    fn default_max_relative() -> Self::Epsilon {
+        f32::default_max_relative()
+    }
+
+    fn relative_eq(
+        &self,
+        other: &Self,
+        epsilon: Self::Epsilon,
+        max_relative: Self::Epsilon,
+    ) -> bool {
+        f32::relative_eq(&self.x, &other.x, epsilon, max_relative)
+            && f32::relative_eq(&self.y, &other.y, epsilon, max_relative)
+            && f32::relative_eq(&self.w, &other.w, epsilon, max_relative)
+            && f32::relative_eq(&self.h, &other.h, epsilon, max_relative)
     }
 }
 
@@ -425,6 +502,9 @@ pub use gfx::texture::WrapMode;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
+    use std::f32::consts::PI;
+
     #[test]
     fn headless_test_color_conversions() {
         let white = Color::new(1.0, 1.0, 1.0, 1.0);
@@ -506,5 +586,149 @@ mod tests {
         let r2 = Rect::new(64.0, 64.0, 64.0, 64.0);
         r1.move_to(Point2::new(64.0, 64.0));
         assert!(r1 == r2);
+    }
+
+    #[test]
+    fn headless_test_rect_combine_with() {
+        {
+            let a = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            };
+            let b = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            };
+            let c = a.combine_with(b);
+            assert_relative_eq!(a, b);
+            assert_relative_eq!(a, c);
+        }
+        {
+            let a = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 2.0,
+            };
+            let b = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 2.0,
+                h: 1.0,
+            };
+            let real = a.combine_with(b);
+            let expected = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 2.0,
+                h: 2.0,
+            };
+            assert_relative_eq!(real, expected);
+        }
+        {
+            let a = Rect {
+                x: -1.0,
+                y: 0.0,
+                w: 2.0,
+                h: 2.0,
+            };
+            let b = Rect {
+                x: 0.0,
+                y: -1.0,
+                w: 1.0,
+                h: 1.0,
+            };
+            let real = a.combine_with(b);
+            let expected = Rect {
+                x: -1.0,
+                y: -1.0,
+                w: 2.0,
+                h: 3.0,
+            };
+            assert_relative_eq!(real, expected);
+        }
+    }
+
+    #[test]
+    fn headless_test_rect_rotate() {
+        {
+            let mut r = Rect {
+                x: -0.5,
+                y: -0.5,
+                w: 1.0,
+                h: 1.0,
+            };
+            let expected = r;
+            r.rotate(PI * 2.0);
+            assert_relative_eq!(r, expected);
+        }
+        {
+            let mut r = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 2.0,
+            };
+            r.rotate(PI * 0.5);
+            let expected = Rect {
+                x: -2.0,
+                y: 0.0,
+                w: 2.0,
+                h: 1.0,
+            };
+            assert_relative_eq!(r, expected);
+        }
+        {
+            let mut r = Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 2.0,
+            };
+            r.rotate(PI);
+            let expected = Rect {
+                x: -1.0,
+                y: -2.0,
+                w: 1.0,
+                h: 2.0,
+            };
+            assert_relative_eq!(r, expected);
+        }
+        {
+            let mut r = Rect {
+                x: -0.5,
+                y: -0.5,
+                w: 1.0,
+                h: 1.0,
+            };
+            r.rotate(PI * 0.5);
+            let expected = Rect {
+                x: -0.5,
+                y: -0.5,
+                w: 1.0,
+                h: 1.0,
+            };
+            assert_relative_eq!(r, expected);
+        }
+        {
+            let mut r = Rect {
+                x: 1.0,
+                y: 1.0,
+                w: 0.5,
+                h: 2.0,
+            };
+            r.rotate(PI * 0.5);
+            let expected = Rect {
+                x: -3.0,
+                y: 1.0,
+                w: 2.0,
+                h: 0.5,
+            };
+            assert_relative_eq!(r, expected);
+        }
     }
 }
