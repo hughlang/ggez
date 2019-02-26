@@ -123,25 +123,7 @@ impl GraphicsContextGeneric<GlBackendSpec> {
             .with_resizable(window_mode.resizable);
 
         window_builder = if !window_setup.icon.is_empty() {
-            use winit::Icon;
-            use std::io::Read;
-            use ::image;
-            use ::image::GenericImageView;
-
-            // This is kinda awful 'cause it copies a couple times,
-            // but still better than
-            // having `winit` try to do the image loading for us.
-            // see https://github.com/tomaka/winit/issues/661
-            let mut buf = Vec::new();
-            let mut reader = filesystem.open(&window_setup.icon)?;
-            let _ = reader.read_to_end(&mut buf)?;
-            let i = image::load_from_memory(&buf)?;
-            let image_data = i.to_rgba();
-            let icon = Icon::from_rgba(image_data.to_vec(), i.width(), i.height())
-                .map_err(|e| {
-                    let msg = format!("Could not load icon: {:?}", e);
-                    GameError::ResourceLoadError(msg)
-                })?;
+            let icon = load_icon(window_setup.icon.as_ref(), filesystem)?;
             window_builder.with_window_icon(Some(icon))
         } else {
             window_builder
@@ -340,6 +322,27 @@ impl GraphicsContextGeneric<GlBackendSpec> {
         gfx.update_globals()?;
         Ok(gfx)
     }
+}
+
+// This is kinda awful 'cause it copies a couple times,
+// but still better than
+// having `winit` try to do the image loading for us.
+// see https://github.com/tomaka/winit/issues/661
+pub(crate) fn load_icon(icon_file: &Path, filesystem: &mut Filesystem) -> GameResult<winit::Icon> {
+    use ::image::GenericImageView;
+    use ::image;
+    use std::io::Read;
+    use winit::Icon;
+
+    let mut buf = Vec::new();
+    let mut reader = filesystem.open(icon_file)?;
+    let _ = reader.read_to_end(&mut buf)?;
+    let i = image::load_from_memory(&buf)?;
+    let image_data = i.to_rgba();
+    Icon::from_rgba(image_data.to_vec(), i.width(), i.height()).map_err(|e| {
+        let msg = format!("Could not load icon: {:?}", e);
+        GameError::ResourceLoadError(msg)
+    })
 }
 
 impl<B> GraphicsContextGeneric<B>
