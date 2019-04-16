@@ -251,24 +251,6 @@ where
                 Event::Suspended(_) => (),
             }
         });
-<<<<<<< HEAD
-        // if ctx.conf.modules.gamepad {
-        //     while let Some(gilrs::Event { id, event, .. }) = ctx.gamepad_context.next_event() {
-        //         match event {
-        //             gilrs::EventType::ButtonPressed(button, _) => {
-        //                 state.controller_button_down_event(ctx, button, id);
-        //             }
-        //             gilrs::EventType::ButtonReleased(button, _) => {
-        //                 state.controller_button_up_event(ctx, button, id);
-        //             }
-        //             gilrs::EventType::AxisChanged(axis, value, _) => {
-        //                 state.controller_axis_event(ctx, axis, value, id);
-        //             }
-        //             _ => {}
-        //         }
-        //     }
-        // }
-=======
         if ctx.conf.modules.gamepad {
             while let Some(gilrs::Event { id, event, .. }) = ctx.gamepad_context.next_event() {
                 match event {
@@ -285,7 +267,6 @@ where
                 }
             }
         }
->>>>>>> f8991f16553e43421ba2e109aded74efdecff19e
         state.update(ctx)?;
         state.draw(ctx)?;
     }
