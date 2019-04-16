@@ -17,9 +17,9 @@ use winit::{self, dpi};
 /// A mouse button.
 pub use winit::MouseButton;
 
-/// An analog axis of some device (controller, joystick...).
+/// An analog axis of some device (gamepad, joystick...).
 pub use gilrs::Axis;
-/// A button of some device (controller, joystick...).
+/// A button of some device (gamepad, joystick...).
 pub use gilrs::Button;
 
 /// `winit` events; nested in a module for re-export neatness.
@@ -36,6 +36,7 @@ pub use winit::EventsLoop;
 
 use crate::context::Context;
 use crate::error::GameResult;
+pub use crate::input::gamepad::GamepadId;
 pub use crate::input::keyboard::{KeyCode, KeyMods};
 
 /// A trait defining event callbacks.  This is your primary interface with
@@ -108,20 +109,27 @@ pub trait EventHandler {
     /// This is the intended way of facilitating text input.
     fn text_input_event(&mut self, _ctx: &mut Context, _character: char) {}
 
-    /// A controller button was pressed; `id` identifies which controller.
+    /// A gamepad button was pressed; `id` identifies which gamepad.
     /// Use [`input::gamepad()`](../input/fn.gamepad.html) to get more info about
-    /// the controller.
-    fn controller_button_down_event(&mut self, _ctx: &mut Context, _btn: Button, _id: usize) {}
+    /// the gamepad.
+    fn gamepad_button_down_event(&mut self, _ctx: &mut Context, _btn: Button, _id: GamepadId) {}
 
-    /// A controller button was released; `id` identifies which controller.
+    /// A gamepad button was released; `id` identifies which gamepad.
     /// Use [`input::gamepad()`](../input/fn.gamepad.html) to get more info about
-    /// the controller.
-    fn controller_button_up_event(&mut self, _ctx: &mut Context, _btn: Button, _id: usize) {}
+    /// the gamepad.
+    fn gamepad_button_up_event(&mut self, _ctx: &mut Context, _btn: Button, _id: GamepadId) {}
 
-    /// A controller axis moved; `id` identifies which controller.
+    /// A gamepad axis moved; `id` identifies which gamepad.
     /// Use [`input::gamepad()`](../input/fn.gamepad.html) to get more info about
-    /// the controller.
-    fn controller_axis_event(&mut self, _ctx: &mut Context, _axis: Axis, _value: f32, _id: usize) {}
+    /// the gamepad.
+    fn gamepad_axis_event(
+        &mut self,
+        _ctx: &mut Context,
+        _axis: Axis,
+        _value: f32,
+        _id: GamepadId,
+    ) {
+    }
 
     /// Called when the window is shown or hidden.
     fn focus_event(&mut self, _ctx: &mut Context, _gained: bool) {}
@@ -155,8 +163,17 @@ where
             let event = ctx.process_event(&event);
             match event {
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::Resized(dpi::LogicalSize { width, height }) => {
-                        state.resize_event(ctx, width as f32, height as f32);
+                    WindowEvent::Resized(logical_size) => {
+                        // TODO: HECKIN HIDPI is probably going to screw up every time anyone tries
+                        // to handle resizes in their own event loop now.
+                        let actual_size =
+                            logical_size.to_physical(ctx.gfx_context.hidpi_factor as f64);
+                        // let actual_size = logical_size;
+                        state.resize_event(
+                            ctx,
+                            actual_size.width as f32,
+                            actual_size.height as f32,
+                        );
                     }
                     WindowEvent::CloseRequested => {
                         if !state.quit_event(ctx) {
@@ -223,8 +240,8 @@ where
                         let delta = mouse::delta(ctx);
                         state.mouse_motion_event(ctx, position.x, position.y, delta.x, delta.y);
                     }
-                    x => {
-                        trace!("ignoring window event {:?}", x);
+                    _x => {
+                        // trace!("ignoring window event {:?}", x);
                     }
                 },
                 Event::DeviceEvent { event, .. } => match event {
@@ -234,6 +251,7 @@ where
                 Event::Suspended(_) => (),
             }
         });
+<<<<<<< HEAD
         // if ctx.conf.modules.gamepad {
         //     while let Some(gilrs::Event { id, event, .. }) = ctx.gamepad_context.next_event() {
         //         match event {
@@ -250,6 +268,24 @@ where
         //         }
         //     }
         // }
+=======
+        if ctx.conf.modules.gamepad {
+            while let Some(gilrs::Event { id, event, .. }) = ctx.gamepad_context.next_event() {
+                match event {
+                    gilrs::EventType::ButtonPressed(button, _) => {
+                        state.gamepad_button_down_event(ctx, button, GamepadId(id));
+                    }
+                    gilrs::EventType::ButtonReleased(button, _) => {
+                        state.gamepad_button_up_event(ctx, button, GamepadId(id));
+                    }
+                    gilrs::EventType::AxisChanged(axis, value, _) => {
+                        state.gamepad_axis_event(ctx, axis, value, GamepadId(id));
+                    }
+                    _ => {}
+                }
+            }
+        }
+>>>>>>> f8991f16553e43421ba2e109aded74efdecff19e
         state.update(ctx)?;
         state.draw(ctx)?;
     }

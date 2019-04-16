@@ -3,7 +3,7 @@
 extern crate cgmath;
 extern crate ggez;
 
-use ggez::event::{self, Axis, Button, KeyCode, KeyMods, MouseButton};
+use ggez::event::{self, Axis, Button, GamepadId, KeyCode, KeyMods, MouseButton};
 use ggez::graphics::{self, DrawMode};
 use ggez::input;
 use ggez::{Context, GameResult};
@@ -103,20 +103,23 @@ impl event::EventHandler for MainState {
         println!("Text input: {}", ch);
     }
 
-    fn controller_button_down_event(&mut self, _ctx: &mut Context, btn: Button, id: usize) {
-        println!("Controller button pressed: {:?} Controller_Id: {}", btn, id);
-    }
-
-    fn controller_button_up_event(&mut self, _ctx: &mut Context, btn: Button, id: usize) {
+    fn gamepad_button_down_event(&mut self, _ctx: &mut Context, btn: Button, id: GamepadId) {
         println!(
-            "Controller button released: {:?} Controller_Id: {}",
+            "Gamepad button pressed: {:?} Gamepad_Id: {:?}",
             btn, id
         );
     }
 
-    fn controller_axis_event(&mut self, _ctx: &mut Context, axis: Axis, value: f32, id: usize) {
+    fn gamepad_button_up_event(&mut self, _ctx: &mut Context, btn: Button, id: GamepadId) {
         println!(
-            "Axis Event: {:?} Value: {} Controller_Id: {}",
+            "Gamepad button released: {:?} Gamepad_Id: {:?}",
+            btn, id
+        );
+    }
+
+    fn gamepad_axis_event(&mut self, _ctx: &mut Context, axis: Axis, value: f32, id: GamepadId) {
+        println!(
+            "Axis Event: {:?} Value: {} Gamepad_Id: {:?}",
             axis, value, id
         );
     }

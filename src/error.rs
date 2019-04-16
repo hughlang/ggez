@@ -3,12 +3,12 @@
 use std;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
 use gfx;
 use glutin;
 use winit;
 
-use app_dirs2::AppDirsError;
 use gilrs;
 use image;
 use lyon;
@@ -17,7 +17,7 @@ use toml;
 use zip;
 
 /// An enum containing all kinds of game framework errors.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GameError {
     /// An error in the filesystem layout
     FilesystemError(String),
@@ -37,9 +37,9 @@ pub enum GameError {
     /// Something went wrong trying to set or get window properties.
     WindowError(String),
     /// Something went wrong trying to create a window
-    WindowCreationError(glutin::CreationError),
+    WindowCreationError(Arc<glutin::CreationError>),
     /// Something went wrong trying to read from a file
-    IOError(std::io::Error),
+    IOError(Arc<std::io::Error>),
     /// Something went wrong trying to load/render a font
     FontError(String),
     /// Something went wrong applying video settings.
@@ -71,8 +71,8 @@ impl fmt::Display for GameError {
 impl Error for GameError {
     fn cause(&self) -> Option<&dyn Error> {
         match *self {
-            GameError::WindowCreationError(ref e) => Some(e),
-            GameError::IOError(ref e) => Some(e),
+            GameError::WindowCreationError(ref e) => Some(&**e),
+            GameError::IOError(ref e) => Some(&**e),
             GameError::ShaderProgramError(ref e) => Some(e),
             _ => None,
         }
@@ -82,15 +82,9 @@ impl Error for GameError {
 /// A convenient result type consisting of a return type and a `GameError`
 pub type GameResult<T = ()> = Result<T, GameError>;
 
-impl From<AppDirsError> for GameError {
-    fn from(e: AppDirsError) -> GameError {
-        let errmessage = format!("{}", e);
-        GameError::FilesystemError(errmessage)
-    }
-}
 impl From<std::io::Error> for GameError {
     fn from(e: std::io::Error) -> GameError {
-        GameError::IOError(e)
+        GameError::IOError(Arc::new(e))
     }
 }
 
@@ -213,7 +207,7 @@ impl From<winit::EventsLoopClosed> for GameError {
 
 impl From<glutin::CreationError> for GameError {
     fn from(s: glutin::CreationError) -> GameError {
-        GameError::WindowCreationError(s)
+        GameError::WindowCreationError(Arc::new(s))
     }
 }
 
